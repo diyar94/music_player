@@ -1,9 +1,15 @@
-import React, {useState} from 'react';
+import React, {useContext, useState} from 'react';
 import './App.css';
-import {ControlBarProps, SongComponentProps, SongProps, SongTitleType, SongType} from './types.ts';
+import {SongProps, SongTitleType, SongType} from './types.ts';
 import {songs} from './defaults.ts';
 
 
+type ContextProps = {
+    currentSong: SongType | undefined,
+    onTitleClick: (event: React.MouseEvent<HTMLDivElement>) => void,
+    onButtonClick: (e: React.MouseEvent<HTMLDivElement>, id: string) => void
+}
+const ComponentContext = React.createContext({} as ContextProps);
 
 
 const SongTitle = ({title, author, isActive, onClick, id}: SongTitleType) =>
@@ -25,6 +31,7 @@ const usePlayerContext = () =>
     {
         const currentClickedSongId = e.currentTarget.getAttribute('data-testId');
         const currentSong = songs.find(song => song.id === currentClickedSongId);
+
         setCurrentSong(currentSong);
     };
 
@@ -81,47 +88,60 @@ const Song: React.FC<SongProps> = ({key, children}) =>
                 key={key}>{children}</div>;
 
 };
-const ControlBar: React.FC<ControlBarProps> = ({currentSong, onButtonClick}) => <div style={{
-    marginTop: '50px'
-}}
-
-                                                                                     onClick={(e) => onButtonClick(e, currentSong?.id)}>
-    <div style={{
-        margin: '10px'
-    }}><strong>{currentSong?.title}</strong> - <i>{currentSong?.author}</i></div>
-    <button data-testId="previous">Previous
-    </button>
-    <button data-testId="next">Next
-    </button>
-    <button data-testId="replay">Replay</button>
-</div>;
-
-
-const Songs: React.FC<SongComponentProps> = ({onTitleClick, currentSong}) => songs.map((song) =>
+const ControlBar = () =>
 {
-    return <Song key={song.id}>
-        <SongTitle id={song.id}
-                   title={song.title}
-                   onClick={onTitleClick}
-                   author={song.author}
-                   isActive={currentSong?.id === song.id}
-        />
-    </Song>;
-});
+    const {currentSong: activeSong, onButtonClick} = useContext(ComponentContext);
+
+    return <div style={{
+        marginTop: '50px'
+    }}
+
+                onClick={(e) => onButtonClick(e, activeSong?.id as string)}>
+        <div style={{
+            margin: '10px'
+        }}><strong>{activeSong?.title}</strong> - <i>{activeSong?.author}</i></div>
+        <button data-testId="previous">Previous
+        </button>
+        <button data-testId="next">Next
+        </button>
+        <button data-testId="replay">Replay</button>
+    </div>;
+};
+
+
+const Songs = () =>
+{
+
+    const {currentSong: activeSong, onTitleClick} = useContext(ComponentContext);
+
+    return songs.map((song) =>
+    {
+
+        return <Song key={song.id}>
+            <SongTitle id={song.id}
+                       title={song.title}
+                       onClick={onTitleClick}
+                       author={song.author}
+                       isActive={activeSong?.id === song.id}
+            />
+        </Song>;
+    });
+};
 
 const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({children}) => children;
 
 function App()
 {
-    const {currentSong, onTitleClick, onButtonClick} = usePlayerContext();
+
+    const contextValue = usePlayerContext();
 
     return (
-        <PlayerProvider>
-            <Songs onTitleClick={onTitleClick}
-                   currentSong={currentSong as SongType}/>
-            <ControlBar currentSong={currentSong as SongType}
-                        onButtonClick={onButtonClick}/>
-        </PlayerProvider>
+        <ComponentContext.Provider value={contextValue}>
+            <PlayerProvider>
+                <Songs/>
+                <ControlBar/>
+            </PlayerProvider>
+        </ComponentContext.Provider>
     );
 }
 
